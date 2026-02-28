@@ -38,13 +38,13 @@ st.sidebar.title("🧭 Navigation")
 page = st.sidebar.radio("Go to:", ["Dashboard Overview", "Category Analysis"])
 
 st.sidebar.markdown("---")
-st.sidebar.write("👩‍💻 Created by: **Sudiani**")
+st.sidebar.write("👩‍💻 Created by: **Angelina Wijaya**")
 st.sidebar.write("📊 Project: E-Commerce Data Analysis")
 
 # =========================
 # LOAD DATA
 # =========================
-df = pd.read_csv("main_data.csv")
+df = pd.read_csv("dashboard/main_data.csv")
 
 # =========================
 # PAGE 1: OVERVIEW
@@ -112,4 +112,5 @@ elif page == "Category Analysis":
     Kategori **{selected_category}** merupakan salah satu kontributor penjualan 
     dalam platform e-commerce. Optimalisasi promosi dan pengelolaan stok pada 
     kategori ini dapat meningkatkan performa bisnis secara keseluruhan.
+
     """)
