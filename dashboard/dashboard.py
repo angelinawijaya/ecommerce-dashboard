@@ -1,116 +1,157 @@
-import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+
+sns.set(style='dark')
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="E-Commerce Analytics Dashboard",
-    page_icon="🛒",
-    layout="wide"
-)
+st.set_page_config(page_title="E-Commerce Dashboard", layout="wide")
+
+st.header("E-Commerce Data Analysis Dashboard 🛒")
 
 # =========================
-# CUSTOM CSS (PORTFOLIO STYLE)
+# HELPER FUNCTIONS
 # =========================
-st.markdown("""
-<style>
-.main {
-    background-color: #f4f6f9;
-}
-h1 {
-    color: #1f4e79;
-}
-.metric-box {
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
-}
-</style>
-""", unsafe_allow_html=True)
 
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.title("🧭 Navigation")
-page = st.sidebar.radio("Go to:", ["Dashboard Overview", "Category Analysis"])
+def create_category_sales_df(df):
+    category_sales_df = df.groupby("category")["price"].sum().sort_values(ascending=False).reset_index()
+    return category_sales_df
 
-st.sidebar.markdown("---")
-st.sidebar.write("👩‍💻 Created by: **Angelina Wijaya**")
-st.sidebar.write("📊 Project: E-Commerce Data Analysis")
+
+def create_rfm_df(df):
+    rfm_df = df.groupby(by="customer_id", as_index=False).agg({
+        "order_purchase_timestamp": "max",
+        "order_id": "nunique",
+        "price": "sum"
+    })
+
+    rfm_df.columns = ["customer_id", "max_order_timestamp", "frequency", "monetary"]
+
+    rfm_df["max_order_timestamp"] = pd.to_datetime(rfm_df["max_order_timestamp"])
+    recent_date = df["order_purchase_timestamp"].max()
+    rfm_df["recency"] = rfm_df["max_order_timestamp"].apply(lambda x: (recent_date - x).days)
+
+    rfm_df.drop("max_order_timestamp", axis=1, inplace=True)
+
+    return rfm_df
+
 
 # =========================
 # LOAD DATA
 # =========================
-df = pd.read_csv("dashboard/main_data.csv")
+
+all_df = pd.read_csv("main_data.csv")
+
+all_df["order_purchase_timestamp"] = pd.to_datetime(all_df["order_purchase_timestamp"])
+all_df.sort_values(by="order_purchase_timestamp", inplace=True)
+all_df.reset_index(drop=True, inplace=True)
 
 # =========================
-# PAGE 1: OVERVIEW
+# FILTER SIDEBAR
 # =========================
-if page == "Dashboard Overview":
 
-    st.title("🛒 E-Commerce Analytics Dashboard")
-    st.markdown("### Business Performance Overview")
+min_date = all_df["order_purchase_timestamp"].min()
+max_date = all_df["order_purchase_timestamp"].max()
 
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Total Categories", len(df))
-    col2.metric("Total Sales", f"{df['total_sales'].sum():,}")
-    col3.metric("Top Category", df.loc[df['total_sales'].idxmax(), 'category'])
-
-    st.markdown("---")
-
-    st.subheader("Top 10 Categories by Sales")
-
-    df_sorted = df.sort_values(by="total_sales", ascending=True)
-
-    fig, ax = plt.subplots(figsize=(8,6))
-    ax.barh(df_sorted["category"], df_sorted["total_sales"])
-    ax.set_xlabel("Total Sales")
-    ax.set_ylabel("Category")
-
-    st.pyplot(fig)
-
-    st.markdown("### 📌 Business Insight")
-    st.write("""
-    Kategori dengan total penjualan tertinggi menunjukkan preferensi utama pelanggan 
-    terhadap produk tertentu. Strategi bisnis dapat difokuskan pada kategori unggulan 
-    untuk meningkatkan revenue dan mempertahankan market share.
-    """)
-
-# =========================
-# PAGE 2: CATEGORY DETAIL
-# =========================
-elif page == "Category Analysis":
-
-    st.title("📦 Category Analysis")
-
-    selected_category = st.selectbox(
-        "Select Product Category",
-        df["category"]
+with st.sidebar:
+    st.image("https://github.com/dicodingacademy/assets/raw/main/logo.png")
+    start_date, end_date = st.date_input(
+        label="Rentang Waktu",
+        min_value=min_date,
+        max_value=max_date,
+        value=[min_date, max_date]
     )
 
-    filtered = df[df["category"] == selected_category]
+# Filter dataframe
+main_df = all_df[
+    (all_df["order_purchase_timestamp"] >= pd.to_datetime(start_date)) &
+    (all_df["order_purchase_timestamp"] <= pd.to_datetime(end_date))
+]
 
-    col1, col2 = st.columns(2)
+# =========================
+# BUSINESS QUESTION 1
+# =========================
 
-    col1.metric("Selected Category", selected_category)
-    col2.metric("Total Sales", f"{int(filtered['total_sales'].values[0]):,}")
+st.subheader("📊 Total Sales by Category")
 
-    st.markdown("---")
+category_sales_df = create_category_sales_df(main_df)
 
-    fig2, ax2 = plt.subplots(figsize=(6,4))
-    ax2.bar(filtered["category"], filtered["total_sales"])
-    ax2.set_ylabel("Total Sales")
+fig1, ax1 = plt.subplots(figsize=(12,6))
+sns.barplot(
+    x="price",
+    y="category",
+    data=category_sales_df.head(10),
+    ax=ax1
+)
+ax1.set_title("Top Categories by Total Sales")
+ax1.set_xlabel("Total Sales")
+ax1.set_ylabel("Category")
 
-    st.pyplot(fig2)
+st.pyplot(fig1)
 
-    st.markdown("### 📌 Insight")
-    st.write(f"""
-    Kategori **{selected_category}** merupakan salah satu kontributor penjualan 
-    dalam platform e-commerce. Optimalisasi promosi dan pengelolaan stok pada 
-    kategori ini dapat meningkatkan performa bisnis secara keseluruhan.
+st.markdown("""
+**Insight:**
+Kategori dengan total penjualan tertinggi menunjukkan produk yang paling diminati 
+pelanggan dalam rentang waktu yang dipilih.
+""")
 
-    """)
+st.markdown("---")
+
+# =========================
+# BUSINESS QUESTION 2
+# =========================
+
+st.subheader("📈 Customer Segmentation Based on RFM")
+
+rfm_df = create_rfm_df(main_df)
+
+# RFM Scoring
+rfm_df["R_score"] = pd.qcut(rfm_df["recency"], 4, labels=[4,3,2,1])
+rfm_df["F_score"] = pd.qcut(rfm_df["frequency"].rank(method="first"), 4, labels=[1,2,3,4])
+rfm_df["M_score"] = pd.qcut(rfm_df["monetary"], 4, labels=[1,2,3,4])
+
+rfm_df["RFM_Total"] = (
+    rfm_df["R_score"].astype(int) +
+    rfm_df["F_score"].astype(int) +
+    rfm_df["M_score"].astype(int)
+)
+
+def segment(score):
+    if score >= 10:
+        return "High Value"
+    elif score >= 7:
+        return "Loyal"
+    elif score >= 5:
+        return "Potential"
+    else:
+        return "At Risk"
+
+rfm_df["Segment"] = rfm_df["RFM_Total"].apply(segment)
+
+segment_counts = rfm_df["Segment"].value_counts().reset_index()
+segment_counts.columns = ["Segment", "Customer_Count"]
+
+fig2, ax2 = plt.subplots(figsize=(8,5))
+sns.barplot(
+    x="Segment",
+    y="Customer_Count",
+    data=segment_counts,
+    ax=ax2
+)
+
+ax2.set_title("Customer Segmentation (RFM)")
+ax2.set_xlabel("Segment")
+ax2.set_ylabel("Number of Customers")
+
+st.pyplot(fig2)
+
+st.markdown("""
+**Insight:**
+Segmentasi RFM membantu mengidentifikasi pelanggan bernilai tinggi, pelanggan loyal, 
+serta pelanggan yang berisiko churn dalam periode yang dipilih.
+""")
+
+st.caption("Copyright © 2026")

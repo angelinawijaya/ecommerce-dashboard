@@ -24,28 +24,64 @@ Dashboard interaktif dibuat menggunakan Streamlit untuk memvisualisasikan insigh
 
 ---
 
-## 🛠️ Tools & Technologies
-- Python
-- Pandas
-- Matplotlib
-- Streamlit
+## 📁 Project Structure
+submission/
+│
+├── dashboard/
+│ ├── dashboard.py
+│ ├── main_data.csv
+│
+├── notebook.ipynb
+├── requirements.txt
+├── README.md
+
 
 ---
 
-## ▶️ How to Run Dashboard
+## ⚙️ Setup Virtual Environment
 
-1. Install dependencies:
-```
+### 1️⃣ Create Virtual Environment
+
+```bash
+python -m venv venv
+2️⃣ Activate Virtual Environment
+
+Windows: venv\Scripts\activate
+
+📦 Install Dependencies
+
+Disarankan untuk menginstall library melalui file requirements.txt:
+
 pip install -r requirements.txt
-```
+▶️ Run Dashboard Locally
 
-2. Jalankan dashboard:
-```
-streamlit run dashboard/dashboard.py
-```
+Masuk ke folder dashboard:
 
----
+cd dashboard
 
-## 👩‍💻 Author
-Sudiani  
+Jalankan Streamlit:
+
+streamlit run dashboard.py
+
+Dashboard akan terbuka di browser pada:
+
+http://localhost:8501
+🌐 Online Deployment (Optional)
+
+Dashboard juga dapat diakses melalui Streamlit Cloud:
+https://ecommerce-dashboard-9mqdw4tfjrzqyisby9awmf.streamlit.app/
+
+🛠️ Tools & Technologies
+
+Python
+
+Pandas
+
+Matplotlib
+
+Streamlit
+
+👩‍💻 Author
+
+Angelina Wijaya
 E-Commerce Data Analysis Project
