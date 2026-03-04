@@ -1,5 +1,5 @@
+streamlit==1.28.0
 pandas
-numpy
 matplotlib
 seaborn
-streamlit
+altair==4.2.2
