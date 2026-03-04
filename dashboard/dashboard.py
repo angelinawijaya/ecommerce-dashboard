@@ -1,157 +1,98 @@
+import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-import streamlit as st
-
-sns.set(style='dark')
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="E-Commerce Dashboard", layout="wide")
-
-st.header("E-Commerce Data Analysis Dashboard 🛒")
-
-# =========================
-# HELPER FUNCTIONS
-# =========================
-
-def create_category_sales_df(df):
-    category_sales_df = df.groupby("category")["price"].sum().sort_values(ascending=False).reset_index()
-    return category_sales_df
-
-
-def create_rfm_df(df):
-    rfm_df = df.groupby(by="customer_id", as_index=False).agg({
-        "order_purchase_timestamp": "max",
-        "order_id": "nunique",
-        "price": "sum"
-    })
-
-    rfm_df.columns = ["customer_id", "max_order_timestamp", "frequency", "monetary"]
-
-    rfm_df["max_order_timestamp"] = pd.to_datetime(rfm_df["max_order_timestamp"])
-    recent_date = df["order_purchase_timestamp"].max()
-    rfm_df["recency"] = rfm_df["max_order_timestamp"].apply(lambda x: (recent_date - x).days)
-
-    rfm_df.drop("max_order_timestamp", axis=1, inplace=True)
-
-    return rfm_df
-
+st.set_page_config(
+    page_title="E-Commerce Analytics Dashboard",
+    page_icon="🛒",
+    layout="wide"
+)
 
 # =========================
 # LOAD DATA
 # =========================
+main_df = pd.read_csv("dashboard/main_data.csv")
+rfm_df = pd.read_csv("dashboard/rfm_data.csv")
 
-all_df = pd.read_csv("main_data.csv")
-
-all_df["order_purchase_timestamp"] = pd.to_datetime(all_df["order_purchase_timestamp"])
-all_df.sort_values(by="order_purchase_timestamp", inplace=True)
-all_df.reset_index(drop=True, inplace=True)
+main_df['order_purchase_timestamp'] = pd.to_datetime(main_df['order_purchase_timestamp'])
 
 # =========================
-# FILTER SIDEBAR
+# SIDEBAR FILTER (INTERACTIVE FEATURE)
 # =========================
+st.sidebar.title("📅 Filter Periode")
 
-min_date = all_df["order_purchase_timestamp"].min()
-max_date = all_df["order_purchase_timestamp"].max()
+min_date = main_df['order_purchase_timestamp'].min()
+max_date = main_df['order_purchase_timestamp'].max()
 
-with st.sidebar:
-    st.image("https://github.com/dicodingacademy/assets/raw/main/logo.png")
-    start_date, end_date = st.date_input(
-        label="Rentang Waktu",
-        min_value=min_date,
-        max_value=max_date,
-        value=[min_date, max_date]
-    )
+start_date = st.sidebar.date_input("Start Date", min_date)
+end_date = st.sidebar.date_input("End Date", max_date)
 
-# Filter dataframe
-main_df = all_df[
-    (all_df["order_purchase_timestamp"] >= pd.to_datetime(start_date)) &
-    (all_df["order_purchase_timestamp"] <= pd.to_datetime(end_date))
+filtered_df = main_df[
+    (main_df['order_purchase_timestamp'] >= pd.to_datetime(start_date)) &
+    (main_df['order_purchase_timestamp'] <= pd.to_datetime(end_date))
 ]
 
-# =========================
-# BUSINESS QUESTION 1
-# =========================
-
-st.subheader("📊 Total Sales by Category")
-
-category_sales_df = create_category_sales_df(main_df)
-
-fig1, ax1 = plt.subplots(figsize=(12,6))
-sns.barplot(
-    x="price",
-    y="category",
-    data=category_sales_df.head(10),
-    ax=ax1
-)
-ax1.set_title("Top Categories by Total Sales")
-ax1.set_xlabel("Total Sales")
-ax1.set_ylabel("Category")
-
-st.pyplot(fig1)
-
-st.markdown("""
-**Insight:**
-Kategori dengan total penjualan tertinggi menunjukkan produk yang paling diminati 
-pelanggan dalam rentang waktu yang dipilih.
-""")
-
-st.markdown("---")
+st.sidebar.markdown("---")
+st.sidebar.write("👩‍💻 Created by: Angelina Wijaya")
 
 # =========================
-# BUSINESS QUESTION 2
+# PAGE TITLE
 # =========================
+st.title("🛒 E-Commerce Data Analysis Dashboard")
+st.markdown("### September 2016 – October 2018")
 
-st.subheader("📈 Customer Segmentation Based on RFM")
+# ==========================================================
+# 📌 PERTANYAAN 1
+# ==========================================================
+st.header("1️⃣ Kategori Produk dengan Jumlah Penjualan Tertinggi")
 
-rfm_df = create_rfm_df(main_df)
-
-# RFM Scoring
-rfm_df["R_score"] = pd.qcut(rfm_df["recency"], 4, labels=[4,3,2,1])
-rfm_df["F_score"] = pd.qcut(rfm_df["frequency"].rank(method="first"), 4, labels=[1,2,3,4])
-rfm_df["M_score"] = pd.qcut(rfm_df["monetary"], 4, labels=[1,2,3,4])
-
-rfm_df["RFM_Total"] = (
-    rfm_df["R_score"].astype(int) +
-    rfm_df["F_score"].astype(int) +
-    rfm_df["M_score"].astype(int)
+category_sales = (
+    filtered_df
+    .groupby('category')['price']
+    .sum()
+    .sort_values(ascending=False)
+    .head(10)
 )
 
-def segment(score):
-    if score >= 10:
-        return "High Value"
-    elif score >= 7:
-        return "Loyal"
-    elif score >= 5:
-        return "Potential"
-    else:
-        return "At Risk"
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Revenue", f"{int(filtered_df['price'].sum()):,}")
+col2.metric("Total Transactions", filtered_df['order_id'].nunique())
+col3.metric("Top Category", category_sales.index[0] if len(category_sales)>0 else "-")
 
-rfm_df["Segment"] = rfm_df["RFM_Total"].apply(segment)
+fig, ax = plt.subplots()
+category_sales.sort_values().plot(kind='barh', ax=ax)
+ax.set_xlabel("Total Sales")
+ax.set_ylabel("Category")
+st.pyplot(fig)
 
-segment_counts = rfm_df["Segment"].value_counts().reset_index()
-segment_counts.columns = ["Segment", "Customer_Count"]
+st.markdown("**Insight:** Kategori dengan total revenue tertinggi menunjukkan preferensi utama pelanggan dalam periode terpilih.")
 
-fig2, ax2 = plt.subplots(figsize=(8,5))
-sns.barplot(
-    x="Segment",
-    y="Customer_Count",
-    data=segment_counts,
-    ax=ax2
-)
+# ==========================================================
+# 📌 PERTANYAAN 2
+# ==========================================================
+st.header("2️⃣ Segmentasi Pelanggan Berdasarkan RFM Analysis")
 
-ax2.set_title("Customer Segmentation (RFM)")
+segment_count = rfm_df['Segment'].value_counts()
+
+col1, col2 = st.columns(2)
+
+col1.metric("Total Customers", rfm_df.shape[0])
+col2.metric("Dominant Segment", segment_count.index[0])
+
+fig2, ax2 = plt.subplots()
+segment_count.plot(kind='bar', ax=ax2)
 ax2.set_xlabel("Segment")
 ax2.set_ylabel("Number of Customers")
-
 st.pyplot(fig2)
 
 st.markdown("""
-**Insight:**
-Segmentasi RFM membantu mengidentifikasi pelanggan bernilai tinggi, pelanggan loyal, 
-serta pelanggan yang berisiko churn dalam periode yang dipilih.
-""")
+**Karakteristik Segmen:**
 
-st.caption("Copyright © 2026")
+- **Loyal Customer** → Frequency & Monetary tinggi, Recency rendah  
+- **New Customer** → Recency rendah tetapi transaksi masih sedikit  
+- **At Risk** → Sudah lama tidak bertransaksi  
+- **Potential Customer** → Perlu strategi retargeting  
+""")
